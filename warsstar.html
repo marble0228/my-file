@@ -1,0 +1,215 @@
+<div id="titles"><div id="titlecontent">
+
+<p>ゆかいな仲間たち</p>
+<p>リーダー村上世昇</p>
+<p>品質管理者 山下俊平</p>
+<p>人員管理 矢野暉</p>
+<p>課題管理 今村亜耶香</p>
+<p>進捗管理 古谷莉子</p>
+<p>スケジュール管理 小黒寧音</p>
+<p>----実装機能----</p>
+<p>検索機能 村上世昇</p>
+<p>ログイン 東京ITスクール</p>	
+<p>ログアウト 東京ITスクール</p>	
+<p>社員一覧表示</p>
+<p>矢野暉</p>
+<p>村上世昇</p>
+<p>山下俊平</p>
+<p>小黒寧音</p>
+今村亜耶香</p>
+古谷莉子</p>
+<p>社員名検索
+村上世昇</p>
+矢野暉</p>
+<p>古谷莉子</p>
+<p>社員登録
+山下俊平</p>	
+<p>社員削除 
+山下俊平</p>	
+<p>入力チェック	
+<p>小黒寧音</p>
+<p>今村亜耶香</p>
+<p>髙畠真一（友情出演）</p>
+<p>アイコン
+村上世昇</p>	
+<p>ソート機能</p>
+<p>山下俊平</p>	
+<p>社員ID検索機能
+<p>古谷莉子</p>	
+<p>社員件数表示機能
+<p>矢野暉</p>
+<p>----株式会社マーブル----</p>
+<p>総監督
+<p>成田佳嗣</p>
+<p>アシスタント</p>
+<p>千葉綾香</p>
+<p>高橋さとみ</p>
+<p>井関明子</p>
+<p>北佳耶</p>
+<p>林由香</p>
+<p>高木伸久</p>
+<p>吉田光希</p>
+<p>今野絢介</p>
+<p>髙畠真一</p>
+<p>----東京ITスクール----</p>
+<p>マネージャー</p>
+<p>高山広樹</p>
+<p>----メイン講師----</p>
+<p>紫貴臣</p>
+<p>松田悠輔</p>
+<p>----サブ講師----</p>
+<p>成田竜也</p>
+<p>荻野志麻</p>
+<p>中村友哉</p>
+<p>中島眞嗣</p>
+<p>監修
+<p>紫貴臣</p>
+</div></div>
+<button id="deathstar">deathstar</button>
+
+<style>
+body {
+    background: radial-gradient(ellipse at center, #000 0%, #000 100%);
+    background-color: black;
+    color: yellow;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Arial Black', sans-serif;
+}
+
+#titles{
+    position: absolute;
+    width: 18em;
+    height: 50em;
+    bottom: 0;
+    left: 50%;
+    margin-left: -9em;
+    font-size: 350%;
+    font-weight: bold;
+    text-align: center;
+    overflow: hidden;
+    transform-origin: 50% 100%;
+    transform: perspective(300px) rotateX(25deg);
+    color:yellow;
+}
+#titles:after{
+    position: absolute;
+    content: ' ';
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 60%;
+    background-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, transparent 100%);
+    pointer-events: none;
+}#titlecontent{
+    position: absolute;
+    top: 100%;
+    animation: scroll 70s linear 4s infinite;
+}
+@keyframes scroll {
+    0% { top: 100%; }
+    100% { top: -170%; }
+}
+#deathstar {
+    position: fixed;
+    left: 1em;
+    bottom: 1em;
+    background: rgba(0, 0, 0, 0.2); /* ほぼ黒で少し透け感 */
+    border: none;
+    color: rgba(255, 255, 0, 0.15); /* 薄い黄色でほぼ黒背景に溶け込む */
+    font-size: 1.5em;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 1000;
+    padding: 0 0.3em;
+    line-height: 1;
+    border-radius: 0.3em;
+    transition: background 0.3s ease, color 0.3s ease;
+    opacity: 0.2; /* 非常に控えめ */
+    
+}
+
+#deathstar:hover {
+    background: rgba(255, 255, 0, 0.2); /* 黄色の薄い背景に */
+    color: rgba(255, 255, 0, 0.8); /* ホバーで見やすく */
+    opacity: 1;
+} .deathstar-explosion {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(255, 100, 0, 0.8) 0%, rgba(255, 0, 0, 0.5) 50%, transparent 70%);
+      clip-path: polygon(
+          50% 0%,
+          61% 35%,
+          98% 35%,
+          68% 57%,
+          79% 91%,
+          50% 70%,
+          21% 91%,
+          32% 57%,
+          2% 35%,
+          39% 35%
+      );
+      animation: deathstar-explode 1s forwards;
+      transform-origin: center center;
+      pointer-events: none;
+      z-index: 3000;
+      transform: translate(-50%, -50%);
+  }
+
+  @keyframes deathstar-explode {
+      0% {
+          transform: translate(-50%, -50%) scale(0.1);
+          opacity: 0;
+      }
+      50% {
+          transform: translate(-50%, -50%) scale(1.2);
+          opacity: 1;
+      }
+      100% {
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 0;
+      }}
+.starburst {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 200px;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, #ff0 0%, #fa0 60%, transparent 80%);
+  clip-path: polygon(
+    100% 50%,78.98% 57.76%,93.3% 75%,71.21% 71.21%,75% 93.3%,57.76% 78.98%,50% 100%,42.24% 78.98%,25% 93.3%,28.79% 71.21%,6.7% 75%,21.02% 57.76%,0% 50%,21.02% 42.24%,6.7% 25%,28.79% 28.79%,25% 6.7%,42.24% 21.02%,50% 0%,57.76% 21.02%,75% 6.7%,71.21% 28.79%,93.3% 25%,78.98% 42.24%
+  );
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3000;
+  animation: starburst-fade 1.5s forwards;
+}
+@keyframes starburst-fade {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+}
+/* --- ここまで追加 --- */
+
+  
+</style>
+<script>document.getElementById('deathstar').addEventListener('click', function() {
+    // 爆発エフェクト要素を作成
+    const star = document.createElement('div');
+    star.classList.add('starburst');
+    document.body.appendChild(star);
+ setTimeout(() => {
+    star.remove();
+    window.close();  // ウィンドウを閉じる（親から開いたウィンドウのみ有効）
+  }, 1500);
+});
+;</script>

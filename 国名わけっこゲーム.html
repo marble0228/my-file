@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国名わけっこゲーム</title>
+    <style>
+        /* 基本的なページ全体の設定 */
+        body {
+            font-family: 'Inter', Arial, sans-serif; /* フォントをInterに設定 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f4f8; /* 背景色を少し明るいグレーに */
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* ゲームコンテナのスタイル */
+        .game-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px; /* 角をさらに丸く */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); /* 影を強調 */
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid #e0e0e0; /* 軽い境界線を追加 */
+        }
+
+        /* タイトル */
+        h1 {
+            color: #2c3e50; /* 濃い青系の色 */
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+
+        /* スタート画面のスタイル */
+        #start-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px; /* 要素間の隙間 */
+        }
+        #levelSelect {
+            padding: 10px 15px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        #startButton {
+            background-color: #28a745; /* 緑色 */
+            color: white;
+            padding: 18px 35px; /* パディングを大きく */
+            font-size: 2em; /* フォントサイズを大きく */
+            border: none;
+            border-radius: 10px; /* 角を丸く */
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* ボタンに影 */
+        }
+        #startButton:hover {
+            background-color: #218838;
+            transform: translateY(-3px); /* ホバーで少し浮き上がる */
+        }
+        #startButton:active {
+            transform: translateY(0); /* クリックで元に戻る */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        #start-screen p {
+            font-size: 1.5em;
+            color: #555;
+        }
+
+        /* ゲーム画面のスタイル */
+        #game-screen {
+            display: none; /* 初期状態では非表示 */
+        }
+        #question {
+            font-size: 3em; /* 問題のフォントサイズを大きく */
+            margin-bottom: 5px; /* 間隔を狭める */
+            color: #34495e; /* 濃いグレー */
+            font-weight: bold;
+        }
+        #userInputDisplay { /* ユーザー入力表示エリアのスタイル */
+            font-size: 1.8em;
+            margin-bottom: 0px; /* 間隔を狭める */
+            color: #007bff; /* 青色 */
+            min-height: 1.8em; /* 高さ確保 */
+            word-break: break-all; /* 長い文字列の折り返し */
+        }
+        #choices-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* 最小幅を少し大きく */
+            gap: 12px; /* ボタン間の隙間を広げる */
+            margin-top: 5px; /* 間隔を狭める */
+        }
+        .choice-button {
+            color: white; /* テキスト色を白に固定して見やすく */
+            padding: 15px 20px; /* パディングを大きく */
+            font-size: 1.2em; /* フォントサイズを大きく */
+            border: none;
+            border-radius: 8px; /* 角を丸く */
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* ボタンに軽い影 */
+        }
+        .choice-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* ホバーで影を強調 */
+        }
+        .choice-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        /* 正解・不正解時の色（!importantでグループごとの色を上書き） */
+        .choice-button.correct {
+            background-color: #28a745 !important; /* 緑色 */
+            animation: pulse-correct 0.5s ease-out; /* 正解時のアニメーション */
+        }
+        .choice-button.wrong {
+            background-color: #dc3545 !important; /* 赤色 */
+            animation: shake-wrong 0.5s ease-out; /* 不正解時のアニメーション */
+        }
+        .choice-button:disabled {
+            opacity: 0.7; /* 無効時は少し透明に */
+            cursor: not-allowed;
+        }
+
+        /* アニメーションキーフレーム */
+        @keyframes pulse-correct {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shake-wrong {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        #result {
+            margin-top: 8px; /* ★変更: 間隔を狭める */
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #34495e;
+            min-height: 1.8em; /* 結果表示エリアの高さ確保 */
+        }
+        #score {
+            font-size: 1.4em;
+            margin-top: 0px; /* ★変更: 間隔を狭める */
+            color: #555;
+            font-weight: bold;
+        }
+        #gameControls { /* 終了ボタンのコンテナ */
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* ボタン間の隙間 */
+            margin-top: 2px; /* ★変更: 間隔を狭める */
+        }
+        #endGameButton {
+            background-color: #6c757d; /* グレー系 */
+            color: white;
+            padding: 10px 20px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        #endGameButton:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        /* 削除ボタンの個別スタイル */
+        #deleteButton {
+            background-color: #ffc107; /* 警告色（黄色） */
+            color: #333; /* テキスト色を濃く */
+            padding: 10px 20px; /* 他のボタンと合わせる */
+            font-size: 1.1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-top: 5px; /* 上の要素との間隔を狭める */
+            margin-bottom: 5px; /* 間隔を狭める */
+            display: block; /* ブロック要素にして中央寄せ可能に */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #deleteButton:hover {
+            background-color: #e0a800;
+            transform: translateY(-1px);
+        }
+        #deleteButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* タイムバーのスタイル */
+        #timeBarContainer {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            height: 15px; /* タイムバーの高さ */
+            margin-bottom: 15px; /* 他の要素との間隔 */
+            overflow: hidden; /* バーがはみ出さないように */
+        }
+        #timeBar {
+            height: 100%;
+            width: 100%; /* 初期は最大幅 */
+            background-color: #007bff; /* 青色 */
+            border-radius: 5px;
+            transition: width linear; /* 幅の変化を滑らかに */
+        }
+        #timeBar.warning {
+            background-color: #ffc107; /* 黄色 */
+        }
+        #timeBar.critical {
+            background-color: #dc3545; /* 赤色 */
+        }
+
+
+        /* 終了画面のスタイル */
+        #end-screen {
+            display: none; /* 初期状態では非表示 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        #final-score {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #retryButton, #returnToTitleButton { /* 終了画面のボタン */
+            background-color: #007bff; /* 青色 */
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.5em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        #retryButton:hover, #returnToTitleButton:hover {
+            background-color: #0056b3;
+            transform: translateY(-3px);
+        }
+        #retryButton:active, #returnToTitleButton:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        #endScreenButtons { /* 終了画面のボタンコンテナ */
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>国名わけっこゲーム</h1>
+
+        <!-- スタート画面 -->
+        <div id="start-screen">
+            <p>レベルを選んでゲームスタート！</p>
+            <select id="levelSelect">
+                <option value="1">レベル1 (練習)</option>
+                <option value="2">レベル2 (応用)</option>
+                <option value="3">レベル3 (本番)</option>
+            </select>
+            <button id="startButton">ゲームスタート！</button>
+        </div>
+
+        <!-- ゲーム画面 -->
+        <div id="game-screen">
+            <div id="question"></div>
+            <div id="userInputDisplay"></div> <!-- ユーザー入力表示エリア -->
+            <button id="deleteButton">削除</button> <!-- 削除ボタンを移動 -->
+            <div id="timeBarContainer"> <!-- タイムバーコンテナ -->
+                <div id="timeBar"></div> <!-- タイムバー本体 -->
+            </div>
+            <div id="choices-container">
+                <!-- 選択肢ボタンがここに動的に生成されます -->
+            </div>
+            <div id="result"></div>
+            <div id="score">現在のスコア: 0</div>
+            <div id="gameControls"> <!-- 終了ボタンのみのコンテナ -->
+                <button id="endGameButton">ゲームを終了</button>
+            </div>
+        </div>
+
+        <!-- 終了画面 -->
+        <div id="end-screen">
+            <p id="final-score"></p>
+            <div id="endScreenButtons"> <!-- 終了画面のボタンコンテナ -->
+                <button id="retryButton">もう一度プレイ</button>
+                <button id="returnToTitleButton">タイトルに戻る</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全てのレベルの問題を定義
+        const allQuestions = [
+            // レベル1の問題 (現在の形式)
+            { id: 'l1-aruzencin1', level: 1, full: "アルゼンチン", part1: "アル", part2: "ゼンチン" },
+            { id: 'l1-aruzencin2', level: 1, full: "アルゼンチン", part1: "アルゼン", part2: "チン" },
+            { id: 'l1-australia1', level: 1, full: "オーストラリア", part1: "オース", part2: "トラリア" },
+            { id: 'l1-australia2', level: 1, full: "オーストラリア", part1: "オースト", part2: "ラリア" },
+            { id: 'l1-igirisu', level: 1, full: "イギリス", part1: "イギ", part2: "リス" },
+            { id: 'l1-america', level: 1, full: "アメリカ", part1: "アメ", part2: "リカ" },
+            { id: 'l1-indonesia1', level: 1, full: "インドネシア", part1: "イン", part2: "ドネシア" },
+            { id: 'l1-indonesia2', level: 1, full: "インドネシア", part1: "インド", part2: "ネシア" },
+
+            // レベル2の問題 (繰り返しパターン)
+            // type: "repeat" - basePart1をrepetitions回繰り返し、part2をrepetitions回繰り返したものが正解
+            { id: 'l2-aruzencin-rep', level: 2, type: "repeat", basePart1: "アル", part2: "ゼンチン", repetitions: 4 },
+            { id: 'l2-indonesia-rep', level: 2, type: "repeat", basePart1: "イン", part2: "ドネシア", repetitions: 3 },
+            { id: 'l2-america-rep', level: 2, type: "repeat", basePart1: "アメ", part2: "リカ", repetitions: 2 },
+            { id: 'l2-igirisu-rep', level: 2, type: "repeat", basePart1: "イギ", part2: "リス", repetitions: 4 },
+
+            // レベル2の問題 (交互パターン)
+            // type: "alternate" - sequencePart1を結合したものが問題、sequencePart2をseparatorで結合したものが正解
+            { id: 'l2-al-in-alt', level: 2, type: "alternate", sequencePart1: ["アル", "イン", "アル", "イン"], sequencePart2: ["ゼンチン", "ドネシア", "ゼンチン", "ドネシア"], separator: "・" },
+            { id: 'l2-al-al-in-in-alt', level: 2, type: "alternate", sequencePart1: ["アル", "アル", "イン", "イン"], sequencePart2: ["ゼンチン", "ゼンチン", "ドネシア", "ドネシア"], separator: "・" },
+            { id: 'l2-in-in-al-al-alt', level: 2, type: "alternate", sequencePart1: ["イン", "イン", "アル", "アル"], sequencePart2: ["ドネシア", "ドネシア", "ゼンチン", "ゼンチン"], separator: " " }, 
+            { id: 'l2-aruzen-aruzen-alt', level: 2, type: "alternate", sequencePart1: ["アルゼン", "アルゼン"], sequencePart2: ["チン", "チン"], separator: " " }, 
+            { id: 'l2-in-in-in-al-alt', level: 2, type: "alternate", sequencePart1: ["イン", "イン", "イン", "アル"], sequencePart2: ["ドネシア", "ドネシア", "ドネシア", "ゼンチン"], separator: " " } ,
+
+            // ★レベル3の問題 (複合交互パターン)
+            // part1とpart2の組み合わせをより複雑に、かつ全てのpart2を使うように設計
+            { id: 'l3-all-parts-1', level: 3, type: "alternate", 
+                sequencePart1: ["アル", "オース", "イギ", "アメ"], 
+                sequencePart2: ["ゼンチン", "トラリア", "リス", "リカ"], 
+                separator: "・" 
+            },
+            { id: 'l3-all-parts-2', level: 3, type: "alternate", 
+                sequencePart1: ["イン", "アルゼン", "オースト", "インド"], 
+                sequencePart2: ["ドネシア", "チン", "ラリア", "ネシア"], 
+                separator: "-" 
+            },
+            { id: 'l3-all-parts-3', level: 3, type: "alternate", 
+                sequencePart1: ["アル", "イン", "アメ", "イギ", "オース"], 
+                sequencePart2: ["ゼンチン", "ドネシア", "リカ", "リス", "トラリア"], 
+                separator: "" // セパレーターなし
+            },
+            { id: 'l3-all-parts-4', level: 3, type: "alternate", 
+                sequencePart1: ["オースト", "アルゼン", "インド", "イギ", "アメ"], 
+                sequencePart2: ["ラリア", "チン", "ネシア", "リス", "リカ"], 
+                separator: "・" 
+            },
+            { id: 'l3-all-parts-5', level: 3, type: "alternate", 
+                sequencePart1: ["イン", "アル", "オース", "イギ", "アメ", "アルゼン"], 
+                sequencePart2: ["ドネシア", "ゼンチン", "トラリア", "リス", "リカ", "チン"], 
+                separator: " " // スペース区切り
+            }
+        ];
+
+        // レベル1用の固定の8つの選択肢（解答として表示される可能性のある全ての後半部分）
+        const fixedChoicesLevel1 = [
+            "ゼンチン", "チン", "トラリア", "ラリア",
+            "リス", "リカ", "ドネシア", "ネシア"
+        ];
+
+        // 選択肢のグループごとの色を定義（濃い色）
+        const choiceColors = {
+            "ゼンチン": "#4169E1", // ロイヤルブルー
+            "チン": "#4169E1",
+            "トラリア": "#228B22", // フォレストグリーン
+            "ラリア": "#228B22",
+            "ドネシア": "#DC143C", // クリムゾン
+            "ネシア": "#DC143C",
+            "リス": "#FF8C00", // ダークオレンジ
+            "リカ": "#FF8C00"
+        };
+
+        let currentQuestionIndex = 0; // 現在の問題のインデックス
+        let score = 0; // 現在のスコア
+        let shuffledQuestions = []; // シャッフルされた問題リスト
+        let selectedLevel = 1; // 選択されたレベル (デフォルトは1)
+
+        // レベル2/3用の状態管理
+        let currentLevel23Clicks = []; // ユーザーがレベル2/3でクリックしたpart2の配列
+        let expectedLevel23ClicksArray = []; // レベル2/3の正解となるpart2の配列
+        let currentQuestionCorrectCombinedText = ""; // レベル2/3の正解となる結合済み文字列
+        let currentQuestionSeparator = ""; // レベル2/3の交互パターンで使用するセパレーター
+
+        // タイムリミット関連の変数
+        const TIME_LIMIT_MS = 10000; // 10秒
+        let timerInterval; // setIntervalのIDを保持
+        let timeRemaining; // 残り時間 (ミリ秒)
+
+        // DOM要素の取得
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        const levelSelect = document.getElementById('levelSelect'); // レベル選択ドロップダウン
+        const startButton = document.getElementById('startButton');
+        const endGameButton = document.getElementById('endGameButton');
+        const deleteButton = document.getElementById('deleteButton'); // 削除ボタンの要素
+        const questionElement = document.getElementById('question');
+        const userInputDisplay = document.getElementById('userInputDisplay'); // ユーザー入力表示エリア
+        const timeBarContainer = document.getElementById('timeBarContainer'); // タイムバーコンテナ
+        const timeBar = document.getElementById('timeBar'); // タイムバー本体
+        const choicesContainer = document.getElementById('choices-container');
+        const resultElement = document.getElementById('result');
+        const scoreElement = document.getElementById('score');
+        const finalScoreElement = document.getElementById('final-score');
+        const retryButton = document.getElementById('retryButton');
+        const returnToTitleButton = document.getElementById('returnToTitleButton'); // タイトルに戻るボタン
+
+
+        /**
+         * 配列をランダムにシャッフルする関数 (フィッシャー・イェーツのシャッフルアルゴリズム)
+         * @param {Array} array - シャッフルする配列
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        /**
+         * レベル1の問題からユニークなpart2のリストを取得するヘルパー関数
+         * レベル2/3のダミー選択肢生成に使用
+         * @returns {Array<string>} ユニークなpart2の文字列配列
+         */
+        function getUniqueLevel1Part2s() {
+            const uniquePart2s = new Set();
+            // レベル1の問題からのみpart2を収集
+            allQuestions.filter(q => q.level === 1 && q.part2).forEach(q => uniquePart2s.add(q.part2));
+            return Array.from(uniquePart2s);
+        }
+
+        /**
+         * ゲームを初期化し、開始する
+         */
+        function initGame() {
+            // 選択されたレベルを取得
+            selectedLevel = parseInt(levelSelect.value);
+            console.log("DEBUG: Selected Level:", selectedLevel); // デバッグログ
+            
+            // 画面の切り替え
+            startScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            endScreen.style.display = 'none';
+
+            score = 0; // スコアをリセット
+            scoreElement.textContent = `現在のスコア: ${score}`; // スコア表示を更新
+            resultElement.textContent = ''; // 結果表示をクリア
+            userInputDisplay.textContent = ''; // ユーザー入力表示をクリア
+            
+            console.log("DEBUG: allQuestions.length before filter:", allQuestions.length); // 全体の問題数を確認
+
+            // 選択されたレベルの問題のみをフィルタリング
+            const levelSpecificQuestions = allQuestions.filter(q => {
+                console.log(`DEBUG: Filtering - q.level: ${q.level} (type: ${typeof q.level}), selectedLevel: ${selectedLevel} (type: ${typeof selectedLevel})`);
+                return q.level === selectedLevel;
+            });
+            console.log("DEBUG: Filtered levelSpecificQuestions (length):", levelSpecificQuestions.length); // デバッグログ
+            console.log("DEBUG: Filtered levelSpecificQuestions (content):", levelSpecificQuestions); // デバッグログ
+
+            // 失敗するまで終わらないように、問題リストを十分に長くする
+            shuffledQuestions = [];
+            // levelSpecificQuestionsが空の場合、ここで無限ループにならないようにチェック
+            if (levelSpecificQuestions.length === 0) {
+                console.log("DEBUG: No questions found for the selected level. Ending game.");
+                endGame("問題が尽きました。");
+                return; // 問題がない場合はここで処理を終了
+            }
+
+            for (let i = 0; i < 100; i++) { // 元のリストの100倍の問題を用意
+                 const tempQuestions = [...levelSpecificQuestions]; // レベル固有の質問のコピーを作成
+                 shuffleArray(tempQuestions); // コピーをシャッフル
+                 shuffledQuestions = shuffledQuestions.concat(tempQuestions); // シャッフルされた問題を連結
+            }
+            console.log("DEBUG: Shuffled Questions Length after population:", shuffledQuestions.length); // デバッグログ
+            currentQuestionIndex = 0; // 最初の問題から開始
+
+            // レベル2/3用の状態をリセット
+            currentLevel23Clicks = [];
+            expectedLevel23ClicksArray = [];
+            currentQuestionCorrectCombinedText = "";
+            currentQuestionSeparator = "";
+
+            // 削除ボタンの表示/非表示を初期化
+            if (selectedLevel >= 2) { // レベル2以上で削除ボタンを表示
+                deleteButton.style.display = 'block'; // レベル2以上ならブロック要素で表示 (中央寄せのため)
+                deleteButton.disabled = true; // 最初は無効
+            } else {
+                deleteButton.style.display = 'none'; // レベル1なら非表示
+            }
+
+            // タイムバーの表示/非表示を初期化
+            if (selectedLevel === 3) { // レベル3のみタイムバーを表示
+                timeBarContainer.style.display = 'block';
+            } else {
+                timeBarContainer.style.display = 'none';
+            }
+
+            loadQuestion(); // 最初の問題を読み込む
+        }
+
+        /**
+         * タイムバーを更新する関数
+         */
+        function updateTimeBar() {
+            const percentage = (timeRemaining / TIME_LIMIT_MS) * 100;
+            timeBar.style.width = percentage + '%';
+
+            // 残り時間に応じて色を変更
+            timeBar.classList.remove('warning', 'critical');
+            if (percentage <= 25) {
+                timeBar.classList.add('critical');
+            } else if (percentage <= 50) {
+                timeBar.classList.add('warning');
+            }
+
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                endGame("時間切れです！"); // 時間切れでゲーム終了
+            } else {
+                timeRemaining -= 100; // 100msごとに更新
+            }
+        }
+
+        /**
+         * タイマーを開始する
+         */
+        function startTimer() {
+            clearInterval(timerInterval); // 既存のタイマーがあればクリア
+            timeRemaining = TIME_LIMIT_MS; // 残り時間をリセット
+            updateTimeBar(); // 初期表示を更新
+            timerInterval = setInterval(updateTimeBar, 100); // 100msごとに更新
+        }
+
+        /**
+         * タイマーを停止する
+         */
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timeBar.style.width = '100%'; // バーをリセット
+            timeBar.classList.remove('warning', 'critical'); // 色をリセット
+        }
+
+        /**
+         * 次の問題と選択肢を読み込み、表示する
+         */
+        function loadQuestion() {
+            choicesContainer.innerHTML = ''; // 前回の選択肢ボタンを全て削除
+            resultElement.textContent = ''; // 前回の結果表示をクリア
+            userInputDisplay.textContent = ''; // ユーザー入力表示をクリア
+
+            // レベル2/3用の状態をリセット
+            currentLevel23Clicks = [];
+            expectedLevel23ClicksArray = [];
+            currentQuestionCorrectCombinedText = "";
+            currentQuestionSeparator = "";
+            deleteButton.disabled = true; // 新しい問題では削除ボタンを無効に
+
+            // レベル3の場合のみタイマーを開始
+            if (selectedLevel === 3) {
+                startTimer();
+            } else {
+                stopTimer(); // レベル1,2ではタイマーを停止・非表示に
+            }
+
+            // 問題がまだあるかチェック
+            if (currentQuestionIndex < shuffledQuestions.length) {
+                const currentQuestion = shuffledQuestions[currentQuestionIndex];
+                console.log("DEBUG: Current Question (in loadQuestion):", currentQuestion); // デバッグログ
+                console.log("DEBUG: Current Question Type (in loadQuestion):", currentQuestion.type); // デバッグログ
+
+                let questionText = "";
+                let displayChoices = [];
+                let choiceButtonColorFunction = (choice) => choiceColors[choice] || '#007bff'; // 選択肢ボタンの色を決定する関数
+
+                if (currentQuestion.level === 1) {
+                    // レベル1の処理
+                    // 必要なプロパティの存在チェック
+                    if (typeof currentQuestion.part1 !== 'string' || typeof currentQuestion.part2 !== 'string') {
+                        console.error("Error: Malformed Level 1 question data. Skipping question:", currentQuestion);
+                        endGame("ゲームエラー: 問題データが不正です。");
+                        return;
+                    }
+                    questionText = currentQuestion.part1;
+                    currentQuestionCorrectCombinedText = currentQuestion.part2; // レベル1でもこの変数を使用
+                    displayChoices = [...fixedChoicesLevel1]; // レベル1は固定選択肢
+                    // レベル1の選択肢はシャッフルしない (固定位置)
+                } else if (currentQuestion.level >= 2) { // レベル2以上で共通処理
+                    // レベル2/3の処理
+                    if (currentQuestion.type === "repeat") {
+                        // 繰り返し問題のプロパティ存在チェック
+                        if (typeof currentQuestion.basePart1 !== 'string' ||
+                            typeof currentQuestion.part2 !== 'string' || // part2を使用
+                            typeof currentQuestion.repetitions !== 'number') {
+                            console.error("Error: Malformed repeat question data. Skipping question:", currentQuestion);
+                            endGame("ゲームエラー: 問題データが不正です。");
+                            return;
+                        }
+                        questionText = currentQuestion.basePart1.repeat(currentQuestion.repetitions);
+                        currentQuestionCorrectCombinedText = currentQuestion.part2.repeat(currentQuestion.repetitions); 
+                        expectedLevel23ClicksArray = Array(currentQuestion.repetitions).fill(currentQuestion.part2);
+                        currentQuestionSeparator = ""; // 繰り返しパターンはセパレーターなし
+                    } else if (currentQuestion.type === "alternate") {
+                        // 交互問題のプロパティ存在チェック
+                        if (!Array.isArray(currentQuestion.sequencePart1) ||
+                            !Array.isArray(currentQuestion.sequencePart2) ||
+                            typeof currentQuestion.separator !== 'string') {
+                            console.error("Error: Malformed alternate question data. Skipping question:", currentQuestion);
+                            endGame("ゲームエラー: 問題データが不正です。");
+                            return;
+                        }
+                        questionText = currentQuestion.sequencePart1.join(""); // 問題は結合
+                        currentQuestionCorrectCombinedText = currentQuestion.sequencePart2.join(currentQuestion.separator); // 解答はセパレーターで結合
+                        expectedLevel23ClicksArray = currentQuestion.sequencePart2;
+                        currentQuestionSeparator = currentQuestion.separator;
+                    } else {
+                        console.error("Error: Unknown question type. Skipping question:", currentQuestion);
+                        endGame("ゲームエラー: 不明な問題タイプです。");
+                        return;
+                    }
+                    
+                    // レベル2/3でもfixedChoicesLevel1の個別のpart2をボタンとして表示し、色もレベル1と同じ
+                    displayChoices = [...fixedChoicesLevel1];
+                    // レベル2/3の選択肢はシャッフルしない (固定位置)
+                } else {
+                    console.error("Error: Question with unknown level. Skipping question:", currentQuestion);
+                    endGame("ゲームエラー: 不明なレベルの問題です。");
+                    return;
+                }
+
+                questionElement.textContent = questionText; // 問題を表示
+
+                // 各選択肢ボタンを作成し、コンテナに追加
+                displayChoices.forEach(choice => {
+                    const button = document.createElement('button');
+                    button.classList.add('choice-button'); // CSSクラスを追加
+                    button.textContent = choice; // ボタンのテキストを設定
+                    // 選択肢のグループごとの色をボタンの背景色に適用
+                    button.style.backgroundColor = choiceButtonColorFunction(choice);
+                    // ボタンクリック時のイベントリスナーを設定
+                    button.addEventListener('click', () => handleChoiceClick(button, choice)); 
+                    choicesContainer.appendChild(button); // ボタンをDOMに追加
+                });
+
+            } else {
+                // このパスはshuffledQuestionsが空の場合に実行されます
+                console.log("DEBUG: shuffledQuestions is empty or currentQuestionIndex is out of bounds. Ending game.");
+                endGame("問題が尽きました。");
+            }
+        }
+
+        /**
+         * 選択肢がクリックされた時の処理
+         * @param {HTMLButtonElement} clickedButton - クリックされたボタン要素
+         * @param {string} selectedChoice - ユーザーが選択した解答
+         */
+        function handleChoiceClick(clickedButton, selectedChoice) {
+            // レベル1のロジック
+            if (selectedLevel === 1) {
+                // 全ての選択肢ボタンを無効にし、多重クリックや追加の選択を防ぐ
+                Array.from(choicesContainer.children).forEach(button => {
+                    button.disabled = true;
+                });
+
+                // ユーザーの選択が正しいか判定
+                if (selectedChoice.toLowerCase() === currentQuestionCorrectCombinedText.toLowerCase()) {
+                    // 正解のメッセージ表記は不要なので、resultElementは更新しない
+                    clickedButton.classList.add('correct'); // 正解ボタンを緑色にする
+                    score++; // スコアをインクリメント
+                    scoreElement.textContent = `現在のスコア: ${score}`; // スコア表示を更新
+                    
+                    // 正解ならすぐに次の問題へ（0.1秒後に読み込み）
+                    setTimeout(() => {
+                        currentQuestionIndex++; // 次の問題へインデックスを進める
+                        loadQuestion(); // 次の問題を読み込む
+                    }, 100); 
+                    
+                } else {
+                    resultElement.textContent = `不正解... 正解は「${currentQuestionCorrectCombinedText}」でした。`; // 不正解メッセージを表示
+                    clickedButton.classList.add('wrong'); // 不正解ボタンを赤色にする
+                    
+                    // 正しい答えのボタンを特定し、緑色で表示してユーザーに正解を教える
+                    Array.from(choicesContainer.children).forEach(button => {
+                        if (button.textContent.toLowerCase() === currentQuestionCorrectCombinedText.toLowerCase()) {
+                            button.classList.add('correct');
+                        }
+                    });
+                    
+                    // 失敗したのでゲーム終了（1.5秒後に終了処理を実行）
+                    setTimeout(() => endGame("残念！不正解です。"), 1500); 
+                }
+            } 
+            // レベル2/3のロジック
+            else if (selectedLevel >= 2) { // レベル2以上で共通処理
+                currentLevel23Clicks.push(selectedChoice); // ユーザーのクリックを記録
+                userInputDisplay.textContent = currentLevel23Clicks.join(currentQuestionSeparator); // ユーザーの入力状況を表示
+                deleteButton.disabled = false; // 入力があったら削除ボタンを有効に
+
+                // ユーザーが期待される回数だけクリックしたかチェック
+                if (currentLevel23Clicks.length === expectedLevel23ClicksArray.length) {
+                    // 全ての選択肢ボタンを無効にし、多重クリックや追加の選択を防ぐ
+                    Array.from(choicesContainer.children).forEach(button => {
+                        button.disabled = true;
+                    });
+                    deleteButton.disabled = true; // 判定に入ったら削除ボタンも無効に
+
+                    // レベル3の場合はタイマーを停止
+                    if (selectedLevel === 3) {
+                        stopTimer();
+                    }
+
+                    const userCombinedAnswer = currentLevel23Clicks.join(currentQuestionSeparator).toLowerCase();
+                    const correctCombinedAnswer = currentQuestionCorrectCombinedText.toLowerCase();
+
+                    if (userCombinedAnswer === correctCombinedAnswer) {
+                        // 正解のメッセージ表記は不要なので、resultElementは更新しない
+                        clickedButton.classList.add('correct'); // 最後にクリックされたボタンを正解色に
+                        score++;
+                        scoreElement.textContent = `現在のスコア: ${score}`;
+                        setTimeout(() => {
+                            currentQuestionIndex++;
+                            loadQuestion();
+                        }, 100);
+                    } else {
+                        resultElement.textContent = `不正解... 正解は「${currentQuestionCorrectCombinedText}」でした。`;
+                        clickedButton.classList.add('wrong'); // 最後にクリックされたボタンを不正解色に
+                        
+                        // 正しい答えを強調表示（今回はresultElementで表示）
+                        // 個々のボタンをハイライトする複雑なロジックは省略し、結果表示で全体を示す
+                        
+                        setTimeout(() => endGame("残念！不正解です。"), 1500);
+                    }
+                }
+                // シーケンスが完了していない場合は、ボタンは有効なまま
+            }
+        }
+
+        /**
+         * ゲームを終了し、終了画面を表示する
+         * @param {string} message - 終了時に表示するメッセージ
+         */
+        function endGame(message) {
+            stopTimer(); // ゲーム終了時は必ずタイマーを停止
+            gameScreen.style.display = 'none'; // ゲーム画面を非表示に
+            endScreen.style.display = 'flex'; // 終了画面を表示
+            finalScoreElement.textContent = `${message} スコア: ${score}問正解！`; // 最終スコアとメッセージを表示
+        }
+
+        /**
+         * レベル2/3で直前の入力を削除する
+         */
+        function deleteLastInput() {
+            if (currentLevel23Clicks.length > 0) {
+                currentLevel23Clicks.pop(); // 配列の最後の要素を削除
+                userInputDisplay.textContent = currentLevel23Clicks.join(currentQuestionSeparator); // 表示を更新
+            }
+            if (currentLevel23Clicks.length === 0) {
+                deleteButton.disabled = true; // 入力がなくなったら削除ボタンを無効に
+            }
+            // 選択肢ボタンは常に有効なので、再有効化の処理は不要
+        }
+
+        /**
+         * タイトル画面に戻る
+         */
+        function returnToTitle() {
+            stopTimer(); // タイトルに戻る際もタイマーを停止
+            endScreen.style.display = 'none';
+            startScreen.style.display = 'flex';
+        }
+
+
+        // イベントリスナーの設定
+
+        // スタートボタンがクリックされたらゲームを開始
+        startButton.addEventListener('click', initGame);
+
+        // ゲーム終了ボタンがクリックされたらゲームを中断して終了
+        endGameButton.addEventListener('click', () => endGame("ゲームを中断しました。"));
+
+        // 削除ボタンがクリックされたら直前の入力を削除
+        deleteButton.addEventListener('click', deleteLastInput);
+
+        // リトライボタンがクリックされたらゲームを初期化して再開
+        retryButton.addEventListener('click', initGame);
+
+        // タイトルに戻るボタンがクリックされたらタイトル画面に戻る
+        returnToTitleButton.addEventListener('click', returnToTitle);
+
+        // 初期表示はスタート画面
+        startScreen.style.display = 'flex';
+        gameScreen.style.display = 'none';
+        endScreen.style.display = 'none';
+    </script>
+</body>
+</html>

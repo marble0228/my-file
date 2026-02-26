@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学園アイドルマスター風カードゲーム</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+            color: #333;
+        }
+
+        #game-container {
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 90%;
+            max-width: 980px;
+            text-align: center;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: #8c00b0;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+        }
+
+        #game-info {
+            display: flex;
+            justify-content: space-around;
+            background-color: #e6e6fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #555;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #game-info span {
+            color: #d81b60;
+            position: relative;
+            display: inline-block;
+            transition: color 0.1s, transform 0.2s;
+        }
+
+        /* ログエリアのスタイル */
+        #game-log {
+            background-color: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            max-height: 180px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #game-log h3 {
+            color: #388e3c;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        #log-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #log-list li {
+            margin-bottom: 5px;
+            line-height: 1.4;
+            color: #4CAF50;
+        }
+        #log-list li .timestamp {
+            color: #9e9e9e;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+
+
+        #status-effects {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            border: 1px solid #eee;
+            width: 100%;
+            box-sizing: border-box;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        #status-effects p {
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 1em;
+        }
+
+        #buff-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        #buff-list li {
+            background-color: #ffe0b2;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            color: #795548;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        }
+
+        /* カードエリアとスキップボタンを横並びにする新しいコンテナ */
+        #card-and-skip-container {
+            display: flex;
+            justify-content: center; /* 中央寄せ */
+            align-items: flex-start; /* 上端揃え */
+            gap: 15px; /* ★変更: カードとボタンの間のスペースを調整 */
+            margin-bottom: 30px;
+            width: 100%;
+            flex-wrap: wrap; /* 画面が狭くなったら折り返す */
+            padding: 0 10px; /* 端の余白を少し追加 */
+            box-sizing: border-box;
+        }
+
+        #card-area {
+            display: flex;
+            justify-content: center; /* カード自体も中央寄せ */
+            gap: 10px; /* ★変更: カード間のスペースを調整 */
+            flex-wrap: wrap;
+            flex-grow: 1; /* 親コンテナ内で利用可能なスペースを均等に占める */
+            /* カード3枚 + gap + スキップボタンの幅が収まるようにmax-widthを調整 */
+            max-width: calc(200px * 3 + 10px * 2 + 100px + 15px); /* カード幅 * 3 + カード間gap * 2 + スキップボタン幅 + コンテナgap */
+            min-width: calc(200px * 2 + 10px); /* カード2枚分の最低幅 + gap */
+        }
+
+        /* 画面が狭くなった時にスキップボタンが下に来るように */
+        @media (max-width: 768px) { /* 適宜ブレークポイントを調整 */
+            #card-and-skip-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            #card-area {
+                min-width: unset; /* 必要に応じてリセット */
+                max-width: 100%;
+            }
+        }
+
+
+        .card {
+            background-color: #fce4ec;
+            border: 3px solid #d81b60;
+            border-radius: 15px;
+            /* ★変更: カードのサイズを小さくする */
+            width: 200px; /* 260px -> 200px */
+            height: 200px; /* 250px -> 200px */
+            padding: 15px; /* パディングも調整 */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            flex-shrink: 0; /* カードが縮まないように */
+        }
+
+        .card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(80%);
+            border-color: #9e9e9e;
+        }
+
+        .card p {
+            font-size: 0.85em; /* フォントサイズも少し小さく */
+            line-height: 1.3; /* 行の高さも調整 */
+            margin-top: 5px;
+            margin-bottom: 5px;
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        .card .cost, .card .score-value {
+            font-size: 0.9em; /* フォントサイズも少し小さく */
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        .card .type {
+            padding: 3px 8px;
+            font-size: 0.8em; /* フォントサイズも少し小さく */
+            margin-top: 8px;
+        }
+
+
+        .card:hover:not(.disabled) {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h3 {
+            color: #8c00b0;
+            margin-top: 0;
+            font-size: 1.3em; /* フォントサイズも少し小さく */
+            margin-bottom: 8px;
+        }
+
+        /* スキップボタンの調整 */
+        #skip-turn-button {
+            background-color: #ff9800;
+            color: white;
+            /* ★変更: ボタンのサイズを小さくする */
+            padding: 12px 20px; /* 15px 25px -> 12px 20px */
+            border: none;
+            border-radius: 8px;
+            font-size: 1em; /* 1.1em -> 1em */
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            height: fit-content; /* 内容に合わせた高さ */
+            align-self: flex-start; /* 上端揃え */
+            flex-shrink: 0; /* 縮まないように */
+            width: 100px; /* ★変更: 120px -> 100px */
+        }
+
+        #skip-turn-button:hover {
+            background-color: #fb8c00;
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 15px;
+            z-index: 100;
+        }
+
+        #game-over-screen h2 {
+            color: #8c00b0;
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        #game-over-screen p {
+            font-size: 1.8em;
+            margin-bottom: 30px;
+            color: #d81b60;
+            font-weight: bold;
+        }
+
+        #restart-button {
+            background-color: #1e88e5;
+        }
+
+        #restart-button:hover {
+            background-color: #1976d2;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* スコア・体力変化時のアニメーション */
+        @keyframes score-up {
+            0% { transform: translateY(0) scale(1); color: #d81b60; }
+            50% { transform: translateY(-5px) scale(5); color: #4CAF50; }
+            100% { transform: translateY(0) scale(1); color: #d81b60; }
+        }
+
+        @keyframes score-down {
+            0% { transform: translateY(0) scale(1); color: #d81b60; }
+            50% { transform: translateY(5px) scale(0.8); color: #c62828; }
+            100% { transform: translateY(0) scale(1); color: #d81b60; }
+        }
+
+        @keyframes hp-up {
+            0% { background-color: transparent; transform: scale(1); }
+            50% { background-color: rgba(76, 175, 80, 0.3); transform: scale(1.1); }
+            100% { background-color: transparent; transform: scale(1); }
+        }
+
+        @keyframes hp-down {
+            0% { background-color: transparent; transform: scale(1); }
+            50% { background-color: rgba(198, 40, 40, 0.3); transform: scale(0.95); }
+            100% { background-color: transparent; transform: scale(1); }
+        }
+
+
+        .score-anim-up {
+            animation: score-up 0.3s ease-out;
+        }
+
+        .score-anim-down {
+            animation: score-down 0.3s ease-out;
+        }
+
+        .hp-anim-up {
+            animation: hp-up 0.5s ease-out;
+        }
+
+        .hp-anim-down {
+            animation: hp-down 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-info">
+            <p>ターン: <span id="turn-count">1</span>/10</p>
+            <p>スコア: <span id="score">0</span></p>
+            <p>体力: <span id="hp">100</span></p>
+        </div>
+
+        <div id="status-effects">
+            <p>現在の効果:</p>
+            <ul id="buff-list">
+                </ul>
+        </div>
+
+        <div id="card-and-skip-container">
+            <div id="card-area">
+                </div>
+
+            <button id="skip-turn-button">スキップ</button>
+        </div>
+
+        <div id="game-log">
+            <h3>ログ</h3>
+            <ul id="log-list">
+                </ul>
+        </div>
+
+
+        <div id="game-over-screen" class="hidden">
+            <h2>ゲーム終了！</h2>
+            <p>最終スコア: <span id="final-score">0</span></p>
+            <button id="restart-button">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const turnCountElement = document.getElementById('turn-count');
+            const scoreElement = document.getElementById('score');
+            const hpElement = document.getElementById('hp');
+            const buffListElement = document.getElementById('buff-list');
+            const cardArea = document.getElementById('card-area');
+            const skipTurnButton = document.getElementById('skip-turn-button');
+            const gameLogElement = document.getElementById('game-log');
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const finalScoreElement = document.getElementById('final-score');
+            const restartButton = document.getElementById('restart-button');
+            const logListElement = document.getElementById('log-list');
+
+            let currentTurn = 1;
+            let score = 0;
+            let hp = 100;
+            const maxHp = 100;
+            const maxTurns = 10;
+
+            let prevScore = 0;
+            let prevHp = 100;
+
+            let buffs = {
+                scoreMultiplier: { value: 1, turns: 0, name: "スコア倍率アップ" },
+                hpCostReduction: [],
+                instantScoreMultiplier: { value: 1, turns: 0, name: "思い出アピール(スコア2倍)" },
+                nextCardCostZero: false 
+            };
+
+            let memoriesAppealUsed = false;
+            // let turnlessCardUsedThisTurn = false; // ★削除: ターン消費なしカードの全体制限フラグを削除
+            let cardsUsedThisTurn = []; 
+
+            function addLog(message) {
+                const li = document.createElement('li');
+                li.innerHTML = message;
+                logListElement.appendChild(li);
+                if (logListElement.children.length > 30) {
+                    logListElement.removeChild(logListElement.firstChild);
+                }
+                gameLogElement.scrollTop = gameLogElement.scrollHeight;
+            }
+
+            // ターン消費なしカードのIDリスト（このリスト自体は残します）
+            const turnlessCardIds = ['image-change', 'fan-letter', 'call-and-response', 'reset-stance', 'memories-appeal'];
+
+            // カードデータ
+            const cards = [
+                {
+                    id: 'vocal-lesson', name: '歌唱レッスン', type: 'アクティブ', baseScore: 50, description: '高得点を獲得します。',
+                    cost: 20, effect: () => {
+                        let points = 50;
+                        score += Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value);
+                        addLog(`歌唱レッスンで${Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value)}スコア獲得！`);
+                    }
+                },
+                {
+                    id: 'dance-lesson', name: 'ダンスレッスン', type: 'アクティブ', baseScore: 30, description: '中得点を獲得します。',
+                    cost: 15, effect: () => {
+                        let points = 30;
+                        score += Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value);
+                        addLog(`ダンスレッスンで${Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value)}スコア獲得。`);
+                    }
+                },
+                {
+                    id: 'talk-practice', name: 'トーク練習', type: 'アクティブ', baseScore: 15, description: '少得点、体力回復します。',
+                    cost: 10, effect: () => {
+                        let points = 15;
+                        score += Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value);
+                        hp = Math.min(maxHp, hp + 15);
+                        addLog(`トーク練習で${Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value)}スコア獲得。体力15回復！`);
+                    }
+                },
+                {
+                    id: 'live-performance', name: 'ライブパフォーマンス', type: 'アクティブ', baseScore: 80, description: '高得点を獲得します。',
+                    cost: 30, effect: () => {
+                        let points = 80;
+                        score += Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value);
+                        addLog(`ライブパフォーマンスで${Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value)}スコア獲得！`);
+                    }
+                },
+                {
+                    id: 'fan-meetup', name: 'ファンミ', type: 'アクティブ', baseScore: 0, description: '体力を回復、体力消費を少し抑えます。',
+                    cost: 5, effect: () => {
+                        hp = Math.min(maxHp, hp + 10);
+                        const newDuration = 1;
+                        const existingBuffIndex = buffs.hpCostReduction.findIndex(b => b.name === "ファンミーティング");
+
+                        if (existingBuffIndex !== -1) {
+                            buffs.hpCostReduction[existingBuffIndex].turns = newDuration;
+                            addLog(`ファンミーティング効果を再発動！残りターンが${newDuration}にリセットされました。`);
+                        } else {
+                            buffs.hpCostReduction.push({ value: 0.8, turns: newDuration, name: "ファンミーティング" });
+                            addLog(`ファンミーティングで体力10回復し、次のターン体力消費が少し減少！`);
+                        }
+                    }
+                },
+
+                // メンタルカード
+                {
+                    id: 'concentration-up', name: '絶好調！', type: 'メンタル', baseScore: 0, description: '5ターン、スコア獲得量が1.5倍になります。',
+                    cost: 5, effect: () => {
+                        const newTurns = 5;
+                        if (buffs.scoreMultiplier.value === 1) {
+                            buffs.scoreMultiplier.value = 1.5;
+                            buffs.scoreMultiplier.turns = newTurns;
+                            addLog(`絶好調！${newTurns}ターン、スコア獲得量1.5倍！`);
+                        } else {
+                            buffs.scoreMultiplier.turns = newTurns;
+                            addLog(`絶好調！効果を再発動！残りターンが${newTurns}にリセットされました。`);
+                        }
+                    }
+                },
+                {
+                    id: 'rest', name: '休憩', type: 'メンタル', baseScore: 0, description: '体力を大きく回復します。',
+                    cost: 0, effect: () => {
+                        hp = Math.min(maxHp, hp + 40);
+                        addLog('休憩で体力40回復！');
+                    }
+                },
+                {
+                    id: 'inspiration', name: 'インスピ', type: 'メンタル', baseScore: 0, description: '2ターン、アクティブカード使用時の体力消費が半減します。',
+                    cost: 10, effect: () => {
+                        const newDuration = 3;
+                        const existingBuffIndex = buffs.hpCostReduction.findIndex(b => b.name === "インスピレーション");
+
+                        if (existingBuffIndex !== -1) {
+                            buffs.hpCostReduction[existingBuffIndex].turns = newDuration;
+                            addLog(`インスピレーション効果を再発動！残りターンが${newDuration}にリセットされました。`);
+                        } else {
+                            buffs.hpCostReduction.push({ value: 0.5, turns: newDuration, name: "インスピレーション" });
+                            addLog(`インスピレーション！${newDuration}ターン、体力消費半減！`);
+                        }
+                    }
+                },
+                {
+                    id: 'image-change', name: 'イメチェン', type: 'メンタル', baseScore: 0, description: 'カードをシャッフルし、新たな3枚を提示します（ターン消費なし）。',
+                    cost: 5, effect: () => {
+                        addLog('イメチェン！カードを再抽選します。');
+                        drawCards();
+                        return false; 
+                    }
+                },
+                {
+                    id: 'secret-training', name: '秘密の特訓', type: 'メンタル', baseScore: 0, description: 'どんな効果が出るかは秘密',
+                    cost: 10, effect: () => {
+                        const randomBuffs = [
+                            () => {
+                                const newTurns = 3;
+                                if (buffs.scoreMultiplier.value === 1) {
+                                    buffs.scoreMultiplier.value = 1.2;
+                                    buffs.scoreMultiplier.turns = newTurns;
+                                    addLog(`秘密の特訓でスコア倍率1.2倍 (${newTurns}ターン) を獲得！`);
+                                } else {
+                                    buffs.scoreMultiplier.turns = newTurns;
+                                    addLog(`秘密の特訓でスコア倍率効果の残りターンが${newTurns}にリセットされました。`);
+                                }
+                            },
+                            () => {
+                                hp = Math.min(maxHp, hp + 25);
+                                addLog(`秘密の特訓で体力が少し回復！`);
+                            },
+                            () => {
+                                const newDuration = 2;
+                                const existingBuffIndex = buffs.hpCostReduction.findIndex(b => b.name === "秘密の特訓(消費軽減)");
+
+                                if (existingBuffIndex !== -1) {
+                                    buffs.hpCostReduction[existingBuffIndex].turns = newDuration;
+                                    addLog(`秘密の特訓(消費軽減)効果を再発動！残りターンが${newDuration}にリセットされました。`);
+                                } else {
+                                    buffs.hpCostReduction.push({ value: 0.7, turns: newDuration, name: "秘密の特訓(消費軽減)" });
+                                    addLog(`秘密の特訓で一時的に体力消費が軽減！`);
+                                }
+                            }
+                        ];
+                        randomBuffs[Math.floor(Math.random() * randomBuffs.length)]();
+                    }
+                },
+                {
+                    id: 'memories-appeal', name: '思い出アピール', type: 'スペシャル', baseScore: 0, description: '次のターン、獲得スコアが2倍になる（ゲーム中1回のみ）。',
+                    cost: 0, effect: () => {
+                        if (!memoriesAppealUsed) {
+                            buffs.instantScoreMultiplier.value = 2; 
+                            buffs.instantScoreMultiplier.turns = 1; 
+                            memoriesAppealUsed = true; 
+                            addLog('思い出アピール発動！今ターン獲得スコアが2倍に！');
+                            return false; 
+                        } else {
+                            addLog('「思い出アピール」は既に使用済みです。');
+                            return false;
+                        }
+                    }
+                },
+                {
+                    id: 'fan-letter', name: 'ファンレター', type: 'メンタル', baseScore: 0, description: '次に使うカードの体力消費を0にする（ターン消費無し）。',
+                    cost: 10, effect: () => {
+                        buffs.nextCardCostZero = true;
+                        addLog('ファンレター効果！次に使うカードの体力消費が0になります。');
+                        return false; 
+                    }
+                },
+                {
+                    id: 'reach-out', name: '届いて！', type: 'アクティブ', baseScore: 0, description: '現在の体力の90％を消費し、スコアを大量に上げる。',
+                    cost: 0, 
+                    effect: () => {
+                        const consumedHp = Math.floor(hp * 0.9);
+                        hp -= consumedHp;
+                        hp = Math.max(0, hp); 
+                        const bonusScore = consumedHp * 5; 
+                        score += Math.floor(bonusScore * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value);
+                        addLog(`「届いて！」を使用。体力${consumedHp}を消費し、${Math.floor(bonusScore * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value)}スコア獲得！`);
+                    }
+                },
+                {
+                    id: 'call-and-response', name: 'シュプレヒコール', type: 'アクティブ', baseScore: 20, description: '得点小アップ、ターン消費無し。', 
+                    cost: 30, effect: () => {
+                        let points = 20;
+                        score += Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value);
+                        addLog(`シュプレヒコールで${Math.floor(points * buffs.scoreMultiplier.value * buffs.instantScoreMultiplier.value)}スコア獲得！`);
+                        return false; 
+                    }
+                },
+                {
+                    id: 'reset-stance', name: '仕切り直し', type: 'メンタル', baseScore: 0, description: 'カードを全て入れ替え、体力消費減少4ターン、ターン消費無し。',
+                    cost: 20, effect: () => {
+                        addLog('仕切り直し！カードを再抽選し、体力消費が4ターン減少します。');
+                        drawCards();
+                        const newDuration = 4;
+                        const existingBuffIndex = buffs.hpCostReduction.findIndex(b => b.name === "仕切り直し");
+
+                        if (existingBuffIndex !== -1) {
+                            buffs.hpCostReduction[existingBuffIndex].turns = newDuration;
+                            addLog(`仕切り直し効果を再発動！残りターンが${newDuration}にリセットされました。`);
+                        } else {
+                            buffs.hpCostReduction.push({ value: 0.6, turns: newDuration, name: "仕切り直し" }); 
+                        }
+                        return false; 
+                    }
+                },
+            ];
+
+            function updateGameInfo(message = '') {
+                if (score > prevScore) {
+                    scoreElement.classList.remove('score-anim-down');
+                    scoreElement.classList.add('score-anim-up');
+                    scoreElement.addEventListener('animationend', () => {
+                        scoreElement.classList.remove('score-anim-up');
+                    }, { once: true });
+                } else if (score < prevScore) {
+                    scoreElement.classList.remove('score-anim-up');
+                    scoreElement.classList.add('score-anim-down');
+                    scoreElement.addEventListener('animationend', () => {
+                        scoreElement.classList.remove('score-anim-down');
+                    }, { once: true });
+                }
+                prevScore = score;
+
+                if (hp > prevHp) {
+                    hpElement.classList.remove('hp-anim-down');
+                    hpElement.classList.add('hp-anim-up');
+                    hpElement.addEventListener('animationend', () => {
+                        hpElement.classList.remove('hp-anim-up');
+                    }, { once: true });
+                } else if (hp < prevHp) {
+                    hpElement.classList.remove('hp-anim-up');
+                    hpElement.classList.add('hp-anim-down');
+                    hpElement.addEventListener('animationend', () => {
+                        hpElement.classList.remove('hp-anim-down');
+                    }, { once: true });
+                }
+                prevHp = hp;
+
+                turnCountElement.textContent = currentTurn;
+                scoreElement.textContent = score;
+                hpElement.textContent = hp;
+
+                buffListElement.innerHTML = '';
+                let hasActiveBuff = false;
+
+                if (buffs.scoreMultiplier.turns > 0) {
+                    const li = document.createElement('li');
+                    li.textContent = `絶好調！ (残り${buffs.scoreMultiplier.turns}ターン)`;
+                    buffListElement.appendChild(li);
+                    hasActiveBuff = true;
+                }
+                if (buffs.instantScoreMultiplier.turns > 0 && buffs.instantScoreMultiplier.value > 1) {
+                    const li = document.createElement('li');
+                    li.textContent = `スコア2倍！ (今ターンのみ)`;
+                    buffListElement.appendChild(li);
+                    hasActiveBuff = true;
+                }
+                if (buffs.nextCardCostZero) {
+                    const li = document.createElement('li');
+                    li.textContent = `次カード体力消費0！`;
+                    buffListElement.appendChild(li);
+                    hasActiveBuff = true;
+                }
+                
+                buffs.hpCostReduction.forEach((b) => {
+                    const li = document.createElement('li');
+                    const reductionText = b.value === 0.5 ? '半減' : `${Math.floor((1 - b.value) * 100)}%軽減`;
+                    li.textContent = `体力消費${reductionText} (残り${b.turns}ターン) [${b.name}]`;
+                    buffListElement.appendChild(li);
+                    hasActiveBuff = true;
+                });
+
+                if (!hasActiveBuff) {
+                    const li = document.createElement('li');
+                    li.textContent = 'なし';
+                    buffListElement.appendChild(li);
+                }
+            }
+
+            function applyCardEffect(card) {
+                if (card.id === 'memories-appeal' && memoriesAppealUsed) {
+                    addLog('「思い出アピール」は既に使用済みです。');
+                    return;
+                }
+                
+                const isTurnlessCard = turnlessCardIds.includes(card.id);
+                // 同一カードの複数回使用防止
+                if (cardsUsedThisTurn.includes(card.id)) {
+                    addLog(`${card.name} は今ターン既に使用しました。`);
+                    return;
+                }
+
+                // ★削除: ターン消費なしカードの全体制限チェックを削除
+                // if (isTurnlessCard && turnlessCardUsedThisTurn) {
+                //     addLog('今ターンはすでにターン消費なしカードを使用しました。これ以上は使えません。');
+                //     return;
+                // }
+
+                let actualCost = card.cost;
+                if (buffs.nextCardCostZero && card.id !== 'fan-letter') { 
+                    actualCost = 0;
+                    addLog(`ファンレターの効果により、${card.name}の体力消費が0になりました！`);
+                    buffs.nextCardCostZero = false; 
+                } else {
+                    const activeHpCostReductionBuffs = buffs.hpCostReduction.filter(b => b.turns > 0);
+                    const bestHpCostReductionValue = activeHpCostReductionBuffs.length > 0
+                        ? Math.min(...activeHpCostReductionBuffs.map(b => b.value))
+                        : 1;
+
+                    if (bestHpCostReductionValue < 1 && card.type === 'アクティブ') {
+                        actualCost = Math.ceil(actualCost * bestHpCostReductionValue);
+                    }
+                }
+                
+                if (card.id === 'reach-out') {
+                    const consumedHp = Math.floor(hp * 0.9);
+                    if (hp < consumedHp + 1) { 
+                        addLog('「届いて！」を使用するには、もう少し体力が必要です。');
+                        return;
+                    }
+                    cardsUsedThisTurn.push(card.id); 
+                    // ★削除: ターン消費なしカードの全体制限フラグ設定を削除
+                    // if (isTurnlessCard) { 
+                    //     turnlessCardUsedThisTurn = true;
+                    // }
+                    card.effect();
+                    endTurn();
+                    return;
+                }
+
+                if (hp >= actualCost) {
+                    hp -= actualCost;
+                    addLog(`${card.name}を使用しました。体力${actualCost}消費。`);
+                    
+                    cardsUsedThisTurn.push(card.id); 
+
+                    // ★削除: ターン消費なしカードの全体制限フラグ設定を削除
+                    // if (isTurnlessCard) { 
+                    //     turnlessCardUsedThisTurn = true;
+                    // }
+
+                    const proceedTurn = card.effect();
+                    
+                    if (proceedTurn !== false) { 
+                        endTurn();
+                    } else {
+                        updateGameInfo();
+                        // ターン消費なしカードの場合、カード表示を更新（無効化するため）
+                        drawCards(); 
+                    }
+                } else {
+                    addLog('体力が足りません！カードを使用できませんでした。');
+                    return;
+                }
+            }
+
+            function drawCards() {
+                cardArea.innerHTML = '';
+
+                const eligibleCards = cards.filter(card => {
+                    if (card.id === 'memories-appeal') {
+                        return !memoriesAppealUsed;
+                    }
+                    return true;
+                });
+
+                const shuffled = eligibleCards.sort(() => 0.5 - Math.random());
+                const selectedCards = shuffled.slice(0, 3);
+                
+                selectedCards.forEach((cardData) => {
+                    let displayCost = cardData.cost;
+                    if (buffs.nextCardCostZero && cardData.id !== 'fan-letter') {
+                         displayCost = 0;
+                    } else {
+                        const activeHpCostReductionBuffs = buffs.hpCostReduction.filter(b => b.turns > 0);
+                        const bestHpCostReductionValue = activeHpCostReductionBuffs.length > 0
+                            ? Math.min(...activeHpCostReductionBuffs.map(b => b.value))
+                            : 1;
+
+                        if (bestHpCostReductionValue < 1 && cardData.type === 'アクティブ') {
+                            displayCost = Math.ceil(displayCost * bestHpCostReductionValue);
+                        }
+                    }
+                    
+                    const scoreText = cardData.baseScore > 0 ? `<div class="score-value">スコア: ${cardData.baseScore}</div>` : '';
+                    const cardElement = document.createElement('div');
+                    cardElement.className = 'card';
+                    
+                    // const isCardTurnless = turnlessCardIds.includes(cardData.id); // ★残す（ターン消費なしカードを識別するため）
+                    let isDisabled = false;
+
+                    if (cardData.id === 'memories-appeal' && memoriesAppealUsed) {
+                         isDisabled = true;
+                    }
+                    if (cardData.id === 'reach-out' && hp <= Math.floor(hp * 0.9) && hp < 1) { 
+                        isDisabled = true;
+                    }
+                    // ★削除: ターン消費なしカードがすでに使われている場合の無効化ロジックを削除
+                    // if (isCardTurnless && turnlessCardUsedThisTurn) {
+                    //     isDisabled = true;
+                    // }
+                    // 今ターン使用済みのカードを無効化（これのみで制限）
+                    if (cardsUsedThisTurn.includes(cardData.id)) {
+                        isDisabled = true;
+                    }
+                    
+                    if (isDisabled) {
+                        cardElement.classList.add('disabled');
+                    }
+
+                    cardElement.innerHTML = `
+                        <h3>${cardData.name}</h3>
+                        <p>${cardData.description}</p>
+                        ${scoreText}
+                        <div class="type">${cardData.type}</div>
+                        <div class="cost">体力消費: ${cardData.id === 'reach-out' ? '現在体力の90%' : displayCost}</div>
+                    `;
+                    
+                    if (!cardElement.classList.contains('disabled')) {
+                        cardElement.addEventListener('click', () => applyCardEffect(cardData));
+                    } else {
+                        cardElement.style.cursor = 'not-allowed';
+                    }
+                    cardArea.appendChild(cardElement);
+                });
+            }
+
+            function decreaseBuffTurns() {
+                if (buffs.scoreMultiplier.turns > 0) {
+                    buffs.scoreMultiplier.turns--;
+                    if (buffs.scoreMultiplier.turns === 0) {
+                        addLog(`絶好調！の効果が切れました。`);
+                        buffs.scoreMultiplier.value = 1;
+                    }
+                }
+
+                if (buffs.instantScoreMultiplier.turns > 0) {
+                    buffs.instantScoreMultiplier.turns--;
+                    if (buffs.instantScoreMultiplier.turns === 0) {
+                        buffs.instantScoreMultiplier.value = 1;
+                        addLog(`思い出アピールの効果が切れました。`);
+                    }
+                }
+
+                buffs.hpCostReduction = buffs.hpCostReduction.filter(b => {
+                    b.turns--;
+                    if (b.turns === 0) {
+                        const reductionText = b.value === 0.5 ? '半減' : `${Math.floor((1 - b.value) * 100)}%軽減`;
+                        addLog(`${b.name} (${reductionText}) の効果が切れました。`);
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            function endTurn() {
+                decreaseBuffTurns();
+                currentTurn++;
+                // turnlessCardUsedThisTurn = false; // ★削除: ターン終了時のリセットも不要に
+                cardsUsedThisTurn = []; 
+                if (currentTurn > maxTurns) {
+                    gameOver();
+                } else {
+                    drawCards(); 
+                    updateGameInfo();
+                }
+            }
+
+            function gameOver() {
+                gameOverScreen.classList.remove('hidden');
+                finalScoreElement.textContent = score;
+                addLog('ゲーム終了！');
+            }
+
+            function resetGame() {
+                currentTurn = 1;
+                score = 0;
+                hp = maxHp;
+                prevScore = 0;
+                prevHp = 100;
+                buffs = {
+                    scoreMultiplier: { value: 1, turns: 0, name: "スコア倍率アップ" },
+                    hpCostReduction: [],
+                    instantScoreMultiplier: { value: 1, turns: 0, name: "思い出アピール(スコア2倍)" },
+                    nextCardCostZero: false 
+                };
+                memoriesAppealUsed = false;
+                // turnlessCardUsedThisTurn = false; // ★削除: リセット時も不要に
+                cardsUsedThisTurn = []; 
+                gameOverScreen.classList.add('hidden');
+                logListElement.innerHTML = '';
+                initGame();
+            }
+
+            function initGame() {
+                updateGameInfo();
+                drawCards();
+                addLog('ゲーム開始！');
+            }
+
+            skipTurnButton.addEventListener('click', () => {
+                hp = Math.min(maxHp, hp + 30);
+                addLog('ターンをスキップして体力30回復！');
+                endTurn();
+            });
+
+            restartButton.addEventListener('click', resetGame);
+
+            initGame();
+        });
+    </script>
+</body>
+</html>
