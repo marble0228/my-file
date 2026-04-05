@@ -1,0 +1,384 @@
+Option Explicit
+
+'========================================
+' メイン処理
+'========================================
+Sub 席替え実行()
+
+    Dim wsSrc As Worksheet
+    Set wsSrc = Worksheets("社員情報")
+    
+    '-----------------------------
+    ' ■ 設定読み込み
+    '-----------------------------
+    Dim useExperienceRule As Boolean
+    Dim avoidLastTable As Boolean
+    Dim avoidPrev2Table As Boolean
+    
+    useExperienceRule = wsSrc.Range("D4").Value
+    avoidLastTable = wsSrc.Range("E4").Value
+    avoidPrev2Table = wsSrc.Range("F4").Value
+    
+    '-----------------------------
+    ' ■ 社員データ取得
+    '-----------------------------
+    Dim lastRow As Long
+    lastRow = wsSrc.Cells(wsSrc.Rows.Count, "A").End(xlUp).Row
+    
+    If lastRow < 7 Then
+        MsgBox "社員データがありません", vbExclamation
+        Exit Sub
+    End If
+    
+    Dim empList As New Collection
+    Dim i As Long
+    
+    For i = 7 To lastRow
+        
+        Dim emp(1 To 10) As Variant
+        
+        Dim j As Long
+        For j = 1 To 9
+            emp(j) = wsSrc.Cells(i, j).Value
+        Next j
+        
+        emp(10) = Empty ' 今回テーブル
+        
+        empList.Add emp
+        
+    Next i
+    
+    '-----------------------------
+    ' ■ シート作成
+    '-----------------------------
+    Dim sheetName As String
+    sheetName = "席順_" & Format(Date, "yyyymmdd") & "_フリガナ"
+    
+    If SheetExists(sheetName) Then
+        If MsgBox("同日のシートがあります。上書きしますか？", vbOKCancel) = vbCancel Then Exit Sub
+        
+        Application.DisplayAlerts = False
+        Worksheets(sheetName).Delete
+        Application.DisplayAlerts = True
+    End If
+    
+    Dim wsDest As Worksheet
+    Set wsDest = Worksheets.Add
+    wsDest.Name = sheetName
+    
+    '-----------------------------
+    ' ■ 席配置（リトライ）
+    '-----------------------------
+    Dim success As Boolean
+    Dim retry As Integer
+    
+    For retry = 1 To 100
+        success = TrySeating(empList, useExperienceRule, avoidLastTable, avoidPrev2Table, wsDest)
+        If success Then Exit For
+    Next
+    
+    If Not success Then
+        MsgBox "配置失敗（制約が厳しすぎます）", vbCritical
+        Exit Sub
+    End If
+    
+    '-----------------------------
+    ' ■ 履歴更新
+    '-----------------------------
+    UpdateHistory empList, wsSrc
+    
+    MsgBox "席替え完了", vbInformation
+
+End Sub
+
+
+'========================================
+' シート存在チェック
+'========================================
+Function SheetExists(sheetName As String) As Boolean
+    On Error Resume Next
+    SheetExists = Not Worksheets(sheetName) Is Nothing
+    On Error GoTo 0
+End Function
+
+
+'========================================
+' 席配置処理（コア）
+'========================================
+Function TrySeating(empList As Collection, _
+                    useExperienceRule As Boolean, _
+                    avoidLastTable As Boolean, _
+                    avoidPrev2Table As Boolean, _
+                    wsDest As Worksheet) As Boolean
+
+    Dim shuffled As Collection
+    Set shuffled = Shuffle(empList)
+    
+    ' テーブル初期化
+    Dim table(1 To 14) As Collection
+    Dim i As Integer
+    For i = 1 To 14
+        Set table(i) = New Collection
+    Next
+    
+    ' エリア経験者カウント
+    Dim areaExpCount(1 To 4) As Integer
+    
+    Dim emp As Variant
+    
+    '========================================
+    ' ■ ① 経験者配置
+    '========================================
+    If useExperienceRule Then
+        
+        For Each emp In shuffled
+            
+            If emp(4) = "有" Then
+                
+                Dim assigned As Boolean
+                assigned = False
+                
+                Dim order As Collection
+                Set order = RandomTableOrder()
+                
+                Dim t As Variant
+                
+                For Each t In order
+                    
+                    If table(t).Count >= 3 Then GoTo NextExp
+                    
+                    Dim area As Integer
+                    area = GetArea(t)
+                    
+                    ' 分散（少ないエリア優先）
+                    If areaExpCount(area) > MinValue(areaExpCount) Then GoTo NextExp
+                    
+                    If avoidLastTable Then
+                        If emp(6) = t Then GoTo NextExp
+                    End If
+                    
+                    If avoidPrev2Table Then
+                        If emp(7) = t Then GoTo NextExp
+                    End If
+                    
+                    ' 配置
+                    emp(10) = t
+                    table(t).Add emp
+                    areaExpCount(area) = areaExpCount(area) + 1
+                    
+                    assigned = True
+                    Exit For
+                    
+NextExp:
+                Next
+                
+                If Not assigned Then
+                    TrySeating = False
+                    Exit Function
+                End If
+                
+            End If
+            
+        Next
+        
+    End If
+    
+    '========================================
+    ' ■ ② 残り配置
+    '========================================
+    For Each emp In shuffled
+        
+        If Not IsEmpty(emp(10)) Then GoTo SkipEmp
+        
+        Dim assigned2 As Boolean
+        assigned2 = False
+        
+        Dim order2 As Collection
+        Set order2 = RandomTableOrder()
+        
+        Dim t2 As Variant
+        
+        For Each t2 In order2
+            
+            If table(t2).Count >= 3 Then GoTo NextEmp
+            
+            If avoidLastTable Then
+                If emp(6) = t2 Then GoTo NextEmp
+            End If
+            
+            If avoidPrev2Table Then
+                If emp(7) = t2 Then GoTo NextEmp
+            End If
+            
+            emp(10) = t2
+            table(t2).Add emp
+            
+            assigned2 = True
+            Exit For
+            
+NextEmp:
+        Next
+        
+        If Not assigned2 Then
+            TrySeating = False
+            Exit Function
+        End If
+        
+SkipEmp:
+    Next
+    
+    ' 出力
+    OutputSeats table, wsDest
+    
+    TrySeating = True
+
+End Function
+
+
+'========================================
+' エリア判定
+'========================================
+Function GetArea(t As Integer) As Integer
+    Select Case t
+        Case 1, 3, 5: GetArea = 1
+        Case 2, 4, 6: GetArea = 2
+        Case 7, 9, 11, 13: GetArea = 3
+        Case 8, 10, 12, 14: GetArea = 4
+    End Select
+End Function
+
+
+'========================================
+' 最小値取得
+'========================================
+Function MinValue(arr As Variant) As Integer
+    Dim i As Integer, minVal As Integer
+    minVal = arr(1)
+    For i = 2 To 4
+        If arr(i) < minVal Then minVal = arr(i)
+    Next
+    MinValue = minVal
+End Function
+
+
+'========================================
+' シャッフル
+'========================================
+Function Shuffle(col As Collection) As Collection
+    
+    Dim temp() As Variant
+    Dim i As Long
+    
+    ReDim temp(1 To col.Count)
+    
+    For i = 1 To col.Count
+        Set temp(i) = col(i)
+    Next
+    
+    Dim j As Long
+    Dim tmp As Variant
+    
+    Randomize
+    
+    For i = UBound(temp) To 2 Step -1
+        j = Int(Rnd() * i) + 1
+        Set tmp = temp(i)
+        Set temp(i) = temp(j)
+        Set temp(j) = tmp
+    Next
+    
+    Dim result As New Collection
+    For i = 1 To UBound(temp)
+        result.Add temp(i)
+    Next
+    
+    Set Shuffle = result
+
+End Function
+
+
+'========================================
+' テーブル順ランダム
+'========================================
+Function RandomTableOrder() As Collection
+    
+    Dim col As New Collection
+    Dim i As Integer
+    
+    For i = 1 To 14
+        col.Add i
+    Next
+    
+    Set RandomTableOrder = Shuffle(col)
+
+End Function
+
+
+'========================================
+' 席順出力
+'========================================
+Sub OutputSeats(table() As Collection, ws As Worksheet)
+
+    Dim map
+    map = Array( _
+        Array(4, "C", 1), Array(4, "G", 2), _
+        Array(5, "C", 3), Array(5, "G", 4), _
+        Array(6, "C", 5), Array(6, "G", 6), _
+        Array(7, "C", 7), Array(7, "G", 8), _
+        Array(8, "C", 9), Array(8, "G", 10), _
+        Array(9, "C", 11), Array(9, "G", 12), _
+        Array(10, "C", 13), Array(10, "G", 14))
+    
+    Dim i As Integer, j As Integer
+    
+    For i = 0 To UBound(map)
+        
+        Dim row As Integer: row = map(i)(0)
+        Dim col As String: col = map(i)(1)
+        Dim t As Integer: t = map(i)(2)
+        
+        For j = 1 To table(t).Count
+            
+            Dim emp As Variant
+            Set emp = table(t)(j)
+            
+            ws.Cells(row, col).Offset(0, j - 1).Value = _
+                emp(1) & vbCrLf & emp(2) & vbCrLf & emp(3)
+                
+        Next
+        
+    Next
+
+End Sub
+
+
+'========================================
+' 履歴更新（完全版）
+'========================================
+Sub UpdateHistory(empList As Collection, ws As Worksheet)
+
+    Dim emp As Variant
+    Dim i As Long
+    Dim lastRow As Long
+    
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    For Each emp In empList
+        
+        For i = 7 To lastRow
+            
+            If ws.Cells(i, 1).Value = emp(1) Then
+                
+                ws.Cells(i, 7).Value = ws.Cells(i, 6).Value
+                ws.Cells(i, 6).Value = ws.Cells(i, 5).Value
+                ws.Cells(i, 5).Value = emp(10)
+                
+                Exit For
+                
+            End If
+            
+        Next
+        
+    Next
+
+End Sub
