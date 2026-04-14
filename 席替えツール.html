@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>席替えツール</title>
+<style>
+  body { font-family: sans-serif; }
+  textarea { width: 600px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(6, 120px);
+    gap: 5px;
+    margin-top: 20px;
+  }
+
+  .seat {
+    border: 1px solid #ccc;
+    padding: 5px;
+    font-size: 12px;
+    white-space: pre-line;
+  }
+
+  .warn { background: #ffcccc; }        /* 同テーブル違反 */
+  .centerWarn { background: #fff3cd; }  /* 中央連続 */
+  .bothWarn { background: #ffcc99; }    /* 両方違反 */
+
+  .section { margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h2>席替えツール　やの®</h2>
+
+<div>
+<b>入力フォーマット：</b><br>
+社員番号,フリガナ,名前,前席のテーブル,前の席が真ん中ならtrue
+</div>
+
+<textarea id="input" rows="8">
+b26a0000,ヤマモトヒロシ,山本博,0,true
+b26a0001,スズキタロウ,鈴木太郎,0,false
+b26a0002,サトウミキ,佐藤美紀,0,false
+b26a0003,タナカユウタ,田中雄太,1,false
+b26a0004,コバヤシアヤ,小林彩,1,true
+b26a0005,カトウケンタ,加藤健太,1,false
+b26a0006,ヨシダサクラ,吉田桜,2,true
+b26a0007,ヤマダリョウ,山田亮,2,false
+b26a0008,ワタナベミホ,渡辺美穂,2,false
+b26a0009,ナカムラソウタ,中村颯太,3,false
+b26a0010,イシダユイ,石田結衣,3,true
+b26a0011,ハヤシトモヤ,林智也,3,false
+b26a0012,サカモトナナ,坂本奈々,4,true
+b26a0013,マツモトリク,松本陸,4,false
+b26a0014,フジタアカリ,藤田朱里,4,false
+b26a0015,オオタケイゴ,太田圭吾,5,false
+b26a0016,ホンダミサキ,本田美咲,5,true
+b26a0017,キムラショウ,木村翔,5,false
+b26a0018,シマダユカ,島田由香,6,true
+b26a0019,ムラカミハルト,村上陽斗,6,false
+b26a0020,アオキレナ,青木玲奈,6,false
+b26a0021,タカハシユウマ,高橋悠真,7,false
+b26a0022,オカダミユ,岡田美優,7,true
+b26a0023,カワムラリョウタ,川村亮太,7,false
+b26a0024,ミヤザキサエ,宮崎冴,8,true
+b26a0025,ウエダカズマ,上田一真,8,false
+b26a0026,ハセガワアミ,長谷川亜美,8,false
+b26a0027,クドウタイチ,工藤太一,9,false
+b26a0028,イノウエマホ,井上真帆,9,true
+b26a0029,サイトウユウキ,斎藤優希,9,false
+b26a0030,ナガノミオ,長野美桜,10,true
+b26a0031,オオシマケイスケ,大島圭介,10,false
+b26a0032,タケウチアスカ,竹内明日香,10,false
+b26a0033,ミウラハルキ,三浦晴樹,11,false
+b26a0034,ヨネザワユリ,米沢友里,11,true
+b26a0035,クサカベリクト,日下部陸斗,11,false
+b26a0036,アサノミク,浅野未来,12,true
+b26a0037,オガワシュン,小川俊,12,false
+b26a0038,ナカジマサラ,中島紗良,12,false
+b26a0039,ハラユウト,原悠斗,13,false
+b26a0040,スギヤマアオイ,杉山葵,13,true
+b26a0041,カネコユウセイ,金子優成,13,false
+</textarea>
+
+<br><br>
+
+<label><input type="checkbox" id="avoidPair" checked> 連続で同じテーブル回避</label>
+<label><input type="checkbox" id="avoidCenter" checked> 連続で中央の席回避</label>
+
+<br>
+優先:
+<select id="priority">
+  <option value="pair">同テーブル連続避け優先</option>
+  <option value="center">中央連続避け優先</option>
+</select>
+
+<br><br>
+
+<button onclick="run()">席替え</button>
+<button onclick="exportCSV()">CSV出力</button>
+<div style="
+  width: 720px;
+  height: 60px;
+  border: 3px solid #000;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  background: #eee;
+">
+  モニター
+</div>
+<div id="result" class="grid"></div>
+
+<div class="section">
+  <b>前回同じテーブルだったのに今回も同じになった人です。</b>
+  <div id="pairList"></div>
+</div>
+
+<div class="section">
+  <b>連続で真ん中の席になった人です。</b>
+  <div id="centerList"></div>
+</div>
+
+<script>
+let latestResult = [];
+let NGpairs = new Set();
+
+function parse(text) {
+  const members = text.trim().split("\n").map(line => {
+    const [id, furigana, name, prevTable, wasCenter] = line.split(",");
+    return {
+      id,
+      furigana,
+      name,
+      prevTable: Number(prevTable),
+      wasCenter: wasCenter === "true"
+    };
+  });
+
+  NGpairs = new Set();
+  const groups = {};
+
+  members.forEach(m => {
+    if (!groups[m.prevTable]) groups[m.prevTable] = [];
+    groups[m.prevTable].push(m);
+  });
+
+  Object.values(groups).forEach(group => {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        NGpairs.add(group[i].id + "-" + group[j].id);
+        NGpairs.add(group[j].id + "-" + group[i].id);
+      }
+    }
+  });
+
+  return members;
+}
+
+function isNG(a, b) {
+  return NGpairs.has(a + "-" + b);
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function generate(members, options) {
+  let best = null;
+
+  for (let t = 0; t < 2000; t++) {
+    let shuffled = shuffle([...members]);
+    let score = 0;
+    let result = [];
+
+    for (let i = 0; i < 42; i++) {
+      let member = shuffled[i];
+
+      if (!member) {
+        result.push(null);
+        continue;
+      }
+
+      let table = Math.floor(i / 3);
+      let seatIndex = i % 3;
+
+      let penalty = 0;
+
+      if (options.avoidPair) {
+        const tableMembers = result.filter(r => r && r.table === table);
+        for (let m of tableMembers) {
+          if (isNG(member.id, m.id)) {
+            penalty += options.priority === "pair" ? 2 : 1;
+          }
+        }
+      }
+
+      if (options.avoidCenter && member.wasCenter && seatIndex === 1) {
+        penalty += options.priority === "center" ? 2 : 1;
+      }
+
+      score += penalty;
+
+      result.push({
+        ...member,
+        table,
+        seatIndex
+      });
+    }
+
+    if (!best || score < best.score) {
+      best = { result, score };
+      if (score === 0) break;
+    }
+  }
+
+  return best.result;
+}
+
+function render(seats) {
+  const el = document.getElementById("result");
+  el.innerHTML = "";
+
+  let pairViolations = [];
+  let centerViolations = [];
+  let pairViolationIds = new Set();
+
+  // ペア違反検出
+  for (let i = 0; i < seats.length; i++) {
+    const a = seats[i];
+    if (!a) continue;
+
+    for (let j = i + 1; j < seats.length; j++) {
+      const b = seats[j];
+      if (!b) continue;
+
+      if (a.table === b.table && isNG(a.id, b.id)) {
+        pairViolations.push(`${a.name} - ${b.name}`);
+        pairViolationIds.add(a.id);
+        pairViolationIds.add(b.id);
+      }
+    }
+  }
+
+  seats.forEach(s => {
+    const div = document.createElement("div");
+    div.className = "seat";
+
+    if (!s) {
+      div.textContent = "空席";
+    } else {
+      div.textContent = `${s.id}\n${s.furigana}\n${s.name}`;
+
+      let isPair = pairViolationIds.has(s.id);
+      let isCenter = s.wasCenter && s.seatIndex === 1;
+
+      if (isPair && isCenter) {
+        div.classList.add("bothWarn");
+      } else if (isPair) {
+        div.classList.add("warn");
+      } else if (isCenter) {
+        div.classList.add("centerWarn");
+      }
+
+      if (isCenter) {
+        centerViolations.push(s.name);
+      }
+    }
+
+    el.appendChild(div);
+  });
+
+  document.getElementById("pairList").innerHTML =
+    pairViolations.length ? pairViolations.map(p => "・" + p).join("<br>") : "なし";
+
+  document.getElementById("centerList").innerHTML =
+    centerViolations.length ? centerViolations.map(n => "・" + n).join("<br>") : "なし";
+}
+
+function run() {
+  const data = parse(document.getElementById("input").value);
+
+  const options = {
+    avoidPair: document.getElementById("avoidPair").checked,
+    avoidCenter: document.getElementById("avoidCenter").checked,
+    priority: document.getElementById("priority").value
+  };
+
+  const result = generate(data, options);
+  latestResult = result;
+  render(result);
+}
+
+function exportCSV() {
+  if (!latestResult.length) return;
+
+  let csv = "社員番号,フリガナ,名前,新テーブル,真ん中の席フラグ\n";
+
+  latestResult.forEach(s => {
+    if (!s) return;
+    csv += `${s.id},${s.furigana},${s.name},${s.table},${s.seatIndex === 1}\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "seat_result.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
