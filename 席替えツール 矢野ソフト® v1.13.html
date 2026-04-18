@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>席替えツール</title>
+
+<style>
+body { font-family: sans-serif; }
+textarea { width: 600px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 120px);
+  gap: 5px;
+  margin-top: 20px;
+}
+
+.seat {
+  border: 1px solid #ccc;
+  padding: 5px;
+  font-size: 12px;
+  white-space: pre-line;
+  cursor: grab;
+  transition: 0.2s;
+}
+
+/* ★ ホバーで光る */
+.seat:hover {
+  background: #d0ebff;
+  border-color: #339af0;
+  transform: scale(1.05);
+  z-index: 1;
+}
+
+/* ドラッグ中 */
+.seat.dragging {
+  opacity: 0.5;
+}
+
+.warn { background: #ffcccc; }
+.centerWarn { background: #fff3cd; }
+.bothWarn { background: #ffcc99; }
+
+.section { margin-top: 20px; }
+</style>
+</head>
+
+<body>
+
+<h2>席替えツールv1.11　やのソフト®</h2>
+
+<div>
+<b>入力フォーマット：</b><br>
+社員番号,名前,フリガナ,前席のテーブル,前の席真ん中,性別
+</div>
+
+<textarea id="input" rows="8">
+b26a0193,小俣燎雅,オマタ　リョウガ,0,FALSE,男
+b26a0376,高田輝良,タカダ　キラ,0,真ん中,男
+b26a0198,山本颯太,ヤマモト　ソウタ,0,FALSE,男
+b26a0263,濱田楓祐,ハマダ　フウスケ,1,FALSE,男
+b26a0328,星野慧斗,ホシノ　ケイト,1,真ん中,男
+b26a0218,東秀和,アズマ　ヨシカズ,1,FALSE,男
+b26a0381,星野玲奈,ホシノ　レナ,2,FALSE,女
+b26a0296,稲葉元太,イナバ　ゲンタ,2,真ん中,男
+b26a0130,藤本季和,フジモト　キワ,2,FALSE,男
+b26a0234,田村優,タムラ　ユウ,3,FALSE,男
+b26a0269,宮下大輝,ミヤシタ　タイキ,3,真ん中,男
+b26a0298,門松真司,カドマツ　シンジ,3,FALSE,男
+b26a0187,鈴木優衣,スズキ　ユイ,4,FALSE,女
+b26a0353,大迫伶斗,オオサコ　レイト,4,真ん中,男
+b26a0237,佐藤成美,サトウ　ナリミ,4,FALSE,女
+b26a0086,占部暖花,ウラベ　ハルカ,5,FALSE,女
+b26a0247,宮川雄成,ミヤガワ　ユウセイ,5,真ん中,男
+b26a0186,齊藤里胡,サイトウ　リコ,5,FALSE,女
+b26a0040,平梨乃,タイラ　リノ,6,FALSE,女
+b26a0352,砂子芽泉,スナコ　メイ,6,真ん中,女
+b26a0383,飛田龍人,トビタ　リュウト,6,FALSE,男
+b26a0244,藤田梨花子,フジタ　リカコ,7,FALSE,女
+b26a0279,清水渓太,シミズ　ケイタ,7,真ん中,男
+b26a0097,高橋由衣,タカハシ　ユイ,7,FALSE,女
+b26a0349,岡庭星河,オカニワ　セイガ,8,FALSE,男
+b26a0267,柏原晟,カシワバラ　ジョウ,8,真ん中,男
+b26a0140,島田湧也,シマダ　ユウヤ,8,FALSE,男
+b26a0069,作田聖季,サクタ　マサキ,9,FALSE,男
+b26a0015,馬場柚季,ババ　ユズキ,9,真ん中
+b26a0339,大段美晴,オオダン　ミハル,9,FALSE,女
+b26a0102,八尾りいな,ヤオ　リイナ,10,FALSE,女
+b26a0334,加藤一樹,カトウ　イチキ,10,真ん中,男
+b26a0382,喜嶋美結,キジマ　ミユウ,10,FALSE,女
+b26a0357,志摩諭祐,シマ　ユウスケ,11,FALSE,男
+b26a0079,伊藤俊太朗,イトウシュンタロウ,11,真ん中,男
+b26a0057,渡邉稀喬,ワタナベ　キキョウ,11,FALSE,男
+b26a0106,谷間萌未,タニマ　モエミ,12,FALSE,女
+b26a0240,吉光一樹,ヨシミツ　カズキ,12,真ん中,男
+b26a0289,下西桃香,シモニシ　モモカ,12,FALSE,女
+b26a0161,水落翼,ミズオチ　ツバサ,13,FALSE,男
+b26a0005,徳田有希,トクダ　ユウキ,13,真ん中,男
+b26a0050,新倉涼太,ニイクラ　リョウタ,13,FALSE,男
+</textarea>
+
+<br><br>
+
+<label><input type="checkbox" id="avoidPair" checked> 連続で同じテーブル回避</label>
+<label><input type="checkbox" id="avoidCenter" checked> 連続で中央の席回避</label>
+
+<br>
+優先:
+<select id="priority">
+<option value="pair">同テーブル連続避け優先</option>
+<option value="center">中央連続避け優先</option>
+</select>
+
+<br><br>
+
+<button onclick="run()">席替え</button>
+<button onclick="exportCSV()">CSV出力</button>
+
+<div style="width:720px;height:60px;border:3px solid #000;margin-top:20px;display:flex;align-items:center;justify-content:center;font-weight:bold;background:#eee;">
+モニター
+</div>
+
+<div id="result" class="grid"></div>
+
+<div class="section">
+<b>前回同じテーブルだったのに今回も同じになった人です。</b>
+<div id="pairList"></div>
+</div>
+
+<div class="section">
+<b>連続で真ん中の席になった人です。</b>
+<div id="centerList"></div>
+</div>
+
+<script>
+let latestResult = [];
+let NGpairs = new Set();
+let dragIndex = null;
+
+function parse(text) {
+  const members = text.trim().split("\n").map(line => {
+    const [id, furigana, name, prevTable, wasCenter, gender] = line.split(",");
+    return { id, furigana, name, prevTable: Number(prevTable), wasCenter: wasCenter === "真ん中", gender };
+  });
+
+  NGpairs = new Set();
+  const groups = {};
+
+  members.forEach(m => {
+    if (!groups[m.prevTable]) groups[m.prevTable] = [];
+    groups[m.prevTable].push(m);
+  });
+
+  Object.values(groups).forEach(group => {
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        NGpairs.add(group[i].id + "-" + group[j].id);
+        NGpairs.add(group[j].id + "-" + group[i].id);
+      }
+    }
+  });
+
+  return members;
+}
+
+function isNG(a, b) {
+  return NGpairs.has(a + "-" + b);
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function generate(members, options) {
+  let best = null;
+
+  for (let t = 0; t < 2000; t++) {
+    let shuffled = shuffle([...members]);
+    let score = 0;
+    let result = [];
+
+    for (let i = 0; i < 42; i++) {
+      let member = shuffled[i];
+
+      if (!member) {
+        result.push(null);
+        continue;
+      }
+
+      let table = Math.floor(i / 3);
+      let seatIndex = i % 3;
+      let penalty = 0;
+
+      if (options.avoidPair) {
+        const tableMembers = result.filter(r => r && r.table === table);
+        for (let m of tableMembers) {
+          if (isNG(member.id, m.id)) {
+            penalty += options.priority === "pair" ? 2 : 1;
+          }
+        }
+      }
+
+      if (options.avoidCenter && member.wasCenter && seatIndex === 1) {
+        penalty += options.priority === "center" ? 2 : 1;
+      }
+
+      score += penalty;
+      result.push({ ...member, table, seatIndex });
+    }
+
+    if (!best || score < best.score) {
+      best = { result, score };
+      if (score === 0) break;
+    }
+  }
+
+  return best.result;
+}
+
+function render(seats) {
+  const el = document.getElementById("result");
+  el.innerHTML = "";
+
+  let pairViolations = [];
+  let centerViolations = [];
+  let pairViolationIds = new Set();
+
+  // ★ インデックスベースで再計算
+  seats.forEach((s, i) => {
+    if (!s) return;
+    s.table = Math.floor(i / 3);
+    s.seatIndex = i % 3;
+  });
+
+  for (let i = 0; i < seats.length; i++) {
+    const a = seats[i];
+    if (!a) continue;
+
+    for (let j = i + 1; j < seats.length; j++) {
+      const b = seats[j];
+      if (!b) continue;
+
+      if (a.table === b.table && isNG(a.id, b.id)) {
+        pairViolations.push(`${a.name} - ${b.name}`);
+        pairViolationIds.add(a.id);
+        pairViolationIds.add(b.id);
+      }
+    }
+  }
+
+  seats.forEach((s, index) => {
+    const div = document.createElement("div");
+    div.className = "seat";
+    div.draggable = true;
+    div.dataset.index = index;
+
+    // --- ドラッグ処理 ---
+    div.addEventListener("dragstart", () => {
+      dragIndex = index;
+      div.classList.add("dragging");
+    });
+
+    div.addEventListener("dragend", () => {
+      div.classList.remove("dragging");
+    });
+
+    div.addEventListener("dragover", e => {
+      e.preventDefault();
+    });
+
+    div.addEventListener("drop", () => {
+      const targetIndex = Number(div.dataset.index);
+
+      [latestResult[dragIndex], latestResult[targetIndex]] =
+      [latestResult[targetIndex], latestResult[dragIndex]];
+
+      render(latestResult);
+    });
+    // --- ここまで ---
+
+    if (!s) {
+      div.textContent = "空席";
+    } else {
+      div.textContent = `${s.id}\n${s.furigana}\n${s.name}`;
+
+      if (s.gender === "女") div.style.color = "red";
+
+      let isPair = pairViolationIds.has(s.id);
+      let isCenter = s.wasCenter && s.seatIndex === 1;
+
+      if (isPair && isCenter) div.classList.add("bothWarn");
+      else if (isPair) div.classList.add("warn");
+      else if (isCenter) div.classList.add("centerWarn");
+
+      if (isCenter) centerViolations.push(s.name);
+    }
+
+    el.appendChild(div);
+  });
+
+  document.getElementById("pairList").innerHTML =
+    pairViolations.length ? pairViolations.map(p => "・" + p).join("<br>") : "なし";
+
+  document.getElementById("centerList").innerHTML =
+    centerViolations.length ? centerViolations.map(n => "・" + n).join("<br>") : "なし";
+}
+
+function run() {
+  const data = parse(document.getElementById("input").value);
+
+  const options = {
+    avoidPair: document.getElementById("avoidPair").checked,
+    avoidCenter: document.getElementById("avoidCenter").checked,
+    priority: document.getElementById("priority").value
+  };
+
+  const result = generate(data, options);
+  latestResult = result;
+  render(result);
+}
+
+function exportCSV() {
+  if (!latestResult.length) return;
+
+  let csv = "社員番号,フリガナ,名前,新テーブル,真ん中の席フラグ\n";
+
+  latestResult.forEach(s => {
+    if (!s) return;
+    csv += `${s.id},${s.furigana},${s.name},${s.table},${s.seatIndex === 1}\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "seat_result.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
